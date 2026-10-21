@@ -135,6 +135,7 @@ export interface CopilotSettings {
       opencode?: OpencodeBackendSettings;
       claude?: ClaudeBackendSettings;
       codex?: CodexBackendSettings;
+      cursor?: CursorBackendSettings;
     };
     // Keyed by device id because binary paths must not sync across devices:
     // https://github.com/logancyang/obsidian-copilot/issues/2539
@@ -190,6 +191,13 @@ export interface OpencodeBackendSettings {
   envOverrides?: Record<string, string>;
 }
 
+export interface CursorBackendSettings {
+  binaryPath?: string;
+  defaultModel?: ModelSelection | null;
+  defaultMode?: CopilotMode | null;
+  envOverrides?: Record<string, string>;
+}
+
 export interface DeviceAgentProfile {
   claudeCliPath?: string;
   codex?: {
@@ -206,6 +214,10 @@ export interface DeviceAgentProfile {
     envOverrides?: Record<string, string>;
   };
   claude?: {
+    envOverrides?: Record<string, string>;
+  };
+  cursor?: {
+    binaryPath?: string;
     envOverrides?: Record<string, string>;
   };
 }
@@ -799,17 +811,20 @@ function sanitizeAgentMode(raw: unknown): CopilotSettings["agentMode"] {
   const existingOpencode = backendsRaw.opencode as Record<string, unknown> | undefined;
   const existingClaude = backendsRaw.claude as Record<string, unknown> | undefined;
   const existingCodex = backendsRaw.codex as Record<string, unknown> | undefined;
+  const existingCursor = backendsRaw.cursor as Record<string, unknown> | undefined;
 
   const opencodeSlice = existingOpencode
     ? sanitizeOpencodeBackendSettings(existingOpencode)
     : undefined;
   const claudeSlice = existingClaude ? sanitizeClaudeBackendSettings(existingClaude) : undefined;
   const codexSlice = existingCodex ? sanitizeCodexBackendSettings(existingCodex) : undefined;
+  const cursorSlice = existingCursor ? sanitizeCursorBackendSettings(existingCursor) : undefined;
 
   const backends: CopilotSettings["agentMode"]["backends"] = {};
   if (opencodeSlice) backends.opencode = opencodeSlice;
   if (claudeSlice) backends.claude = claudeSlice;
   if (codexSlice) backends.codex = codexSlice;
+  if (cursorSlice) backends.cursor = cursorSlice;
 
   const deviceProfiles = sanitizeDeviceProfiles(r.deviceProfiles);
 
@@ -1109,6 +1124,17 @@ function sanitizeCodexBackendSettings(raw: unknown): CodexBackendSettings {
   };
 }
 
+function sanitizeCursorBackendSettings(raw: unknown): CursorBackendSettings {
+  if (!raw || typeof raw !== "object") return {};
+  const r = raw as Record<string, unknown>;
+  return {
+    binaryPath: nonEmptyString(r.binaryPath),
+    defaultModel: sanitizeDefaultModel(r.defaultModel),
+    defaultMode: sanitizeDefaultMode(r.defaultMode),
+    envOverrides: sanitizeEnvOverrides(r.envOverrides),
+  };
+}
+
 function sanitizeOpencodeBackendSettings(raw: unknown): OpencodeBackendSettings {
   if (!raw || typeof raw !== "object") return {};
   const r = raw as Record<string, unknown>;
@@ -1181,6 +1207,17 @@ function sanitizeDeviceAgentProfile(raw: unknown): DeviceAgentProfile | undefine
   if (claudeRaw) {
     const envOverrides = sanitizeEnvOverrides(claudeRaw.envOverrides);
     if (envOverrides) out.claude = { envOverrides };
+  }
+
+  const cursorRaw =
+    r.cursor && typeof r.cursor === "object" ? (r.cursor as Record<string, unknown>) : null;
+  if (cursorRaw) {
+    const cursor: NonNullable<DeviceAgentProfile["cursor"]> = {};
+    const binaryPath = nonEmptyString(cursorRaw.binaryPath);
+    if (binaryPath) cursor.binaryPath = binaryPath;
+    const envOverrides = sanitizeEnvOverrides(cursorRaw.envOverrides);
+    if (envOverrides) cursor.envOverrides = envOverrides;
+    if (Object.keys(cursor).length > 0) out.cursor = cursor;
   }
 
   return Object.keys(out).length > 0 ? out : undefined;

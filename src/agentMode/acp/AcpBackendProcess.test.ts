@@ -23,6 +23,7 @@ const mockSetSessionConfigOption = jest.fn(async (params: { value: string }) => 
 const mockLoadSession = jest.fn(async (..._args: unknown[]) => ({}));
 const mockListSessions = jest.fn(async (..._args: unknown[]) => ({ sessions: [] }));
 const mockInitializeRequest = jest.fn();
+const mockAuthenticate = jest.fn(async (..._args: unknown[]) => ({}));
 
 jest.mock("@agentclientprotocol/sdk", () => {
   class RequestError extends Error {
@@ -67,6 +68,7 @@ jest.mock("@agentclientprotocol/sdk", () => {
             mockInitializeRequest(params);
             return mockInitializeResult;
           },
+          authenticate: mockAuthenticate,
           "session/new": mockNewSession,
           "session/resume": mockResumeSession,
           "session/close": mockCloseSession,
@@ -197,6 +199,8 @@ describe("AcpBackendProcess", () => {
       mockProcessIsRunning = true;
       mockInitializeResult = { protocolVersion: 1 };
       mockInitializeRequest.mockClear();
+      mockAuthenticate.mockClear();
+      mockAuthenticate.mockResolvedValue({});
       mockNewSession.mockClear();
       mockNewSession.mockResolvedValue({ sessionId: "test-session" });
       mockResumeSession.mockClear();
@@ -398,6 +402,37 @@ describe("AcpBackendProcess", () => {
         expect(mockInitializeRequest.mock.calls[0][0].clientCapabilities).not.toHaveProperty(
           "_meta"
         );
+      });
+
+      it("authenticates with the advertised method when the backend names one", async () => {
+        mockInitializeResult = {
+          protocolVersion: 1,
+          authMethods: [{ id: "cursor_login" }],
+        };
+        const backend = new AcpBackendProcess(
+          buildApp(),
+          buildStubBackend({ authenticateMethodId: "cursor_login" }),
+          "1.0.0",
+          buildStubDescriptor()
+        );
+
+        await backend.start();
+
+        expect(mockAuthenticate).toHaveBeenCalledWith({ methodId: "cursor_login" });
+      });
+
+      it("does not authenticate when the named method is not advertised", async () => {
+        mockInitializeResult = { protocolVersion: 1, authMethods: [{ id: "other" }] };
+        const backend = new AcpBackendProcess(
+          buildApp(),
+          buildStubBackend({ authenticateMethodId: "cursor_login" }),
+          "1.0.0",
+          buildStubDescriptor()
+        );
+
+        await backend.start();
+
+        expect(mockAuthenticate).not.toHaveBeenCalled();
       });
     });
 

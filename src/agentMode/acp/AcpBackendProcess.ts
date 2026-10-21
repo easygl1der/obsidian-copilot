@@ -78,6 +78,13 @@ export type AcpCapability =
   | "session/set_config_option"
   | "mcp/http";
 
+function advertisedAuthMethod(
+  init: { authMethods?: ReadonlyArray<{ id?: string }> },
+  methodId: string
+): boolean {
+  return (init.authMethods ?? []).some((method) => method.id === methodId);
+}
+
 function isMethodNotFoundError(err: unknown): boolean {
   if (err instanceof RequestError) return err.code === JSONRPC_METHOD_NOT_FOUND;
   if (typeof err === "object" && err !== null && "code" in err) {
@@ -180,14 +187,38 @@ export class AcpBackendProcess implements BackendProcess {
       ndJsonStream(stdin, stdout),
       (notification) => void client.sessionUpdate(notification)
     );
-    this.connection = createClient()
+    let builder = createClient()
       .onRequest("fs/read_text_file", ({ params }) => client.readTextFile(params))
       .onRequest("fs/write_text_file", ({ params }) => client.writeTextFile(params))
       .onRequest("session/request_permission", ({ params }) => client.requestPermission(params))
       .onRequest("elicitation/create", ({ params, requestId, signal }) =>
         this.handleElicitation(params, String(requestId), signal)
-      )
-      .connect(stream);
+      );
+    this.backend.bindClientExtensions?.({
+      onRequest: (method, handler) => {
+        builder = builder.onRequest(
+          method,
+          (params) => params,
+          ({ params, requestId, signal }) =>
+            handler(params, {
+              requestId: requestId !== undefined ? String(requestId) : undefined,
+              signal,
+            })
+        );
+      },
+      onNotification: (method, handler) => {
+        builder = builder.onNotification(
+          method,
+          (params) => params,
+          ({ params }) => {
+            handler(params);
+          }
+        );
+      },
+      askUserQuestion: (prompt) =>
+        this.askUserQuestionPrompter ? this.askUserQuestionPrompter(prompt) : Promise.resolve({}),
+    });
+    this.connection = builder.connect(stream);
 
     try {
       const init = await this.connection.agent.request("initialize", {
@@ -227,6 +258,10 @@ export class AcpBackendProcess implements BackendProcess {
       logInfo(
         `[AgentMode] initialized backend ${this.backend.id} (negotiated protocol v${init.protocolVersion}, listSessions=${this.hasCapability("session/list")}, resumeSession=${this.hasCapability("session/resume")}, loadSession=${this.hasCapability("session/load")})`
       );
+      const methodId = this.backend.authenticateMethodId;
+      if (methodId && advertisedAuthMethod(init, methodId)) {
+        await this.connection.agent.request("authenticate", { methodId });
+      }
     } catch (err) {
       logError(
         `[AgentMode] initialize failed for ${this.backend.id}; tearing down subprocess`,
