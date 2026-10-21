@@ -44,6 +44,10 @@ describe("deviceProfiles", () => {
               binarySource: "custom",
               probeSessionId: "sess-1",
             },
+            cursor: {
+              binaryPath: "/a/agent",
+              envOverrides: { HTTPS_PROXY: "http://127.0.0.1:9" },
+            },
           },
         })
       );
@@ -53,6 +57,7 @@ describe("deviceProfiles", () => {
       expect(out.agentMode.claudeCli).toBeUndefined();
       expect(out.agentMode.backends.codex?.binaryPath).toBeUndefined();
       expect(out.agentMode.backends.opencode?.binaryPath).toBeUndefined();
+      expect(out.agentMode.backends.cursor?.binaryPath).toBeUndefined();
 
       expect(out.agentMode.deviceProfiles?.[DEVICE_A]).toEqual({
         claudeCliPath: "/a/claude",
@@ -67,6 +72,10 @@ describe("deviceProfiles", () => {
           binaryVersion: "1.2.3",
           binarySource: "custom",
           probeSessionId: "sess-1",
+        },
+        cursor: {
+          binaryPath: "/a/agent",
+          envOverrides: { HTTPS_PROXY: "http://127.0.0.1:9" },
         },
       });
     });

@@ -17,6 +17,7 @@ Open [**Settings → Copilot → Basic → Agents**](settings.md#basic). Configu
 | **opencode** | Recommended for most people                     | Copilot-hosted models, your API providers, or local OpenAI-compatible APIs |
 | **Claude**   | You already use Claude Code                     | Your Claude Code installation and Anthropic account                        |
 | **Codex**    | You already use the Codex CLI and Codex account | Your Codex CLI login through the `codex-acp` adapter                       |
+| **Cursor**   | You already use Cursor CLI (`agent`)            | Your Cursor account through `agent acp`                                    |
 
 For opencode and Codex, **Managed by Copilot** uses the version Copilot tests. **My own binary** remains available, but other versions may not work correctly with Copilot. The Configure dialog reminds you of this when you choose your own binary.
 
@@ -78,6 +79,20 @@ For an existing or manually installed `@agentclientprotocol/codex-acp` adapter, 
 The **Authentication** section shows your signed-in ChatGPT email and plan when Codex provides them. Select **Sign out** beside the account to switch accounts. API-key authentication and accounts without an email show the signed-in badge without an email. An installed agent shows **Sign in required** until it is authenticated.
 
 You can also choose **Sign in** on the Agent Chat status card. For terminal login, run your configured adapter with `cli login` using the same `CODEX_HOME` as Copilot.
+
+### Cursor
+
+The Cursor backend runs Cursor CLI in ACP mode (`agent acp`) on your computer:
+
+1. Install Cursor CLI if you do not already have it. The official installer is `curl https://cursor.com/install -fsS | bash`.
+2. Open **Basic → Agents → Cursor → Configure**.
+3. Select **Auto-detect**, or enter the absolute path to the `agent` (or `cursor-agent`) executable.
+4. Select **Sign in** if the CLI is not already authenticated, then finish in your browser. You can also run `agent login` in a terminal.
+5. Enable the models you want and choose a default.
+
+Cursor reads project MCP servers from `.cursor/mcp.json` in the vault folder. Team-level MCP servers from the Cursor dashboard are not available in ACP mode. Models and billing come from your Cursor account. Models added under **BYOK** do not join the Cursor model list.
+
+If the session asks a multiple-choice question or requests plan approval through Cursor's ACP extensions, Copilot shows the question in chat and replies so the turn does not hang. Sign-in uses your existing Cursor CLI login; Copilot does not store a Cursor API key in the vault.
 
 Switching to your own Codex binary removes unused managed downloads. Your custom binary and account credentials remain on your computer. Cancel is available during downloads; configuration changes finish before another action can start.
 

@@ -10,10 +10,14 @@ import {
 } from "./registry";
 import { ClaudeBackendDescriptor } from "./claude/descriptor";
 import { CodexBackendDescriptor } from "./codex/descriptor";
+import { CursorBackendDescriptor } from "./cursor/descriptor";
 import { OpencodeBackendDescriptor } from "./opencode/descriptor";
 
 jest.mock("@/agentMode/backends/opencode/OpencodeInstallModal", () => ({
   OpencodeInstallModal: class {},
+}));
+jest.mock("@/agentMode/backends/cursor/CursorInstallModal", () => ({
+  CursorInstallModal: class {},
 }));
 jest.mock("@/components/modals/ConfirmModal", () => ({ ConfirmModal: class {} }));
 jest.mock("@/components/ui/setting-item", () => ({ SettingItem: () => null }));
@@ -48,6 +52,9 @@ describe("registry", () => {
         ClaudeBackendDescriptor
       );
       expect(getActiveBackendDescriptor(baseSettings("codex", true))).toBe(CodexBackendDescriptor);
+      expect(getActiveBackendDescriptor(baseSettings("cursor", true))).toBe(
+        CursorBackendDescriptor
+      );
     });
 
     it("falls back to OpenCode when an unknown backend is selected", () => {
@@ -67,17 +74,19 @@ describe("registry", () => {
           OpencodeBackendDescriptor,
           ClaudeBackendDescriptor,
           CodexBackendDescriptor,
+          CursorBackendDescriptor,
         ])
       );
     });
   });
 
   describe("backendDisplayOrder()", () => {
-    it("lists opencode, then Claude, then Codex", () => {
+    it("lists opencode, then Claude, then Codex, then Cursor", () => {
       expect(backendDisplayOrder()).toEqual([
         OpencodeBackendDescriptor,
         ClaudeBackendDescriptor,
         CodexBackendDescriptor,
+        CursorBackendDescriptor,
       ]);
     });
 
@@ -103,20 +112,22 @@ describe("registry", () => {
       expect(backendNeedsSelfHostWarning(OpencodeBackendDescriptor, off)).toBe(false);
       expect(backendNeedsSelfHostWarning(ClaudeBackendDescriptor, off)).toBe(false);
       expect(backendNeedsSelfHostWarning(CodexBackendDescriptor, off)).toBe(false);
+      expect(backendNeedsSelfHostWarning(CursorBackendDescriptor, off)).toBe(false);
     });
 
-    it("warns on cloud agents (Claude, Codex) but not opencode when Self-Host Mode is on", () => {
+    it("warns on cloud agents (Claude, Codex, Cursor) but not opencode when Self-Host Mode is on", () => {
       const on = baseSettings("opencode", true);
       expect(backendNeedsSelfHostWarning(OpencodeBackendDescriptor, on)).toBe(false);
       expect(backendNeedsSelfHostWarning(ClaudeBackendDescriptor, on)).toBe(true);
       expect(backendNeedsSelfHostWarning(CodexBackendDescriptor, on)).toBe(true);
+      expect(backendNeedsSelfHostWarning(CursorBackendDescriptor, on)).toBe(true);
     });
   });
 
   describe("getCloudAgentIds()", () => {
     it("contains exactly the non-self-hostable backends and returns the same set on every call", () => {
       const ids = getCloudAgentIds();
-      expect([...ids].sort()).toEqual(["claude", "codex"]);
+      expect([...ids].sort()).toEqual(["claude", "codex", "cursor"]);
       expect(getCloudAgentIds()).toBe(ids);
     });
   });
